@@ -16,10 +16,10 @@ MAINTAINER_EMAIL = 'm.lyra@sussex.ac.uk'
 URL = 'https://github.com/mattilyra/suckerpunch'
 DOWNLOAD_URL = 'https://github.com/mattilyra/suckerpunch'
 
-VERSION = '0.1'
+VERSION = '0.1.1'
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
-extensions = [Extension("suckerpunch.cMinhash", ["suckerpunch/cMinhash{}".format(ext)], include_dirs=[np.get_include()])]
+extensions = [Extension("suckerpunch.cMinhash", ["suckerpunch/cMinhash{}".format(ext), 'suckerpunch/MurmurHash3.cpp'], include_dirs=[np.get_include()])]
 if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions)
