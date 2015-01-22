@@ -107,7 +107,8 @@ class LSH(object):
                 self.removed_articles += 1
                 return True
 
-        self._update(fingerprint, stripped_txt)
+        if update:
+            self._update(fingerprint, stripped_txt)
         return False
 
 if __name__ == '__main__':
