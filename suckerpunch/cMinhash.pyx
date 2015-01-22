@@ -1,5 +1,5 @@
 # distutils: language = c++
-# distutils: sources = MurmurHash3.cpp
+# distutils: sources = suckerpunch/MurmurHash3.cpp
 
 __author__ = "Matti Lyra"
 
