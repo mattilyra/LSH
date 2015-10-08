@@ -26,34 +26,28 @@ def minhash(char* c_str,
     a sliding window.
     """
     cdef uint32_t num_seeds = len(seeds)
-    cdef np.ndarray[np.int64_t, ndim=2] fingerprint = np.zeros((num_seeds, 2),
-                                                               dtype=np.int64)
+    cdef np.ndarray[np.int64_t, ndim=1] fingerprint = \
+        np.zeros((num_seeds, ), dtype=np.int64)
 
     cdef int64_t INT64_MAX = 9223372036854775807
     cdef int64_t hashes[2]
-    cdef int64_t minhash[2]
-    cdef int64_t [:, :] mem_view = fingerprint # memory view to the numpy array
+    cdef int64_t minhash
+
+    # memory view to the numpy array - this should be free of any python
+    cdef int64_t [:] mem_view = fingerprint
     cdef uint32_t i, s
     with nogil:
         for s in range(num_seeds):
-            minhash[0] = INT64_MAX
-            minhash[1] = INT64_MAX
+            minhash = INT64_MAX
             for i in range(strlen - char_ngram + 1):
                 MurmurHash3_x64_128(c_str, char_ngram, seeds[s], hashes)
-
-                if hashes[0] < minhash[0]:
-                    minhash[0] = hashes[0]
-                    minhash[1] = hashes[1]
-                elif hashes[0] == minhash[0] and hashes[1] < minhash[1]:
-                    minhash[0] = hashes[0]
-                    minhash[1] = hashes[1]
+                if hashes[0] < minhash:
+                    minhash = hashes[0]
                 c_str += 1
 
             # store the current minhash
-            mem_view[s][1] = minhash[1]
-            mem_view[s][0] = minhash[0]
+            mem_view[s] = minhash
 
             # reset string pointer for next hash
             c_str -= strlen - char_ngram + 1
-
     return fingerprint
