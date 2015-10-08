@@ -3,7 +3,7 @@ __author__ = "Matti Lyra"
 
 import numpy as np
 
-from lsh.cMinhash import minhash
+from .cMinhash import minhash
 
 class MinHasher(object):
     def __init__(self, seeds, char_ngram=8, random_state=None):
@@ -34,10 +34,9 @@ class MinHasher(object):
         if isinstance(seeds, np.ndarray):
             self._seeds = seeds
         else:
-            np.random.seed(rand_seed)
-            self._seeds = np.array(random_state.randint(0, 1e6, num_seeds),
+            self._seeds = np.array(random_state.randint(0, 1e6, seeds),
                                    dtype=np.uint32)
 
-        def fingerprint(self, text):
-            fingerprint = minhash(text, len(text), self._seeds, self._ngram)
-            return fingerprint
+    def fingerprint(self, text):
+        fingerprint = minhash(text, len(text), self._seeds, self._ngram)
+        return fingerprint
