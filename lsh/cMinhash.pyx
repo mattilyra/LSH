@@ -1,5 +1,5 @@
 # distutils: language = c++
-# distutils: sources = suckerpunch/MurmurHash3.cpp
+# distutils: sources = lsh/MurmurHash3.cpp
 
 __author__ = "Matti Lyra"
 
@@ -18,7 +18,13 @@ def minhash(char* c_str,
             int strlen,
             np.ndarray[dtype=np.uint32_t, ndim=1] seeds not None,
             int char_ngram):
+    """Perform shingling and compute minhash of each shingle.
 
+    Creates `char_ngram` length shingles from input string `c_str` and computes
+    `len(seeds)` number 128bit min hashes for each shingle. A shingle is a
+    character ngram of length `char_ngram`, consecutive shingles are taken over
+    a sliding window.
+    """
     cdef uint32_t num_seeds = len(seeds)
     cdef np.ndarray[np.int64_t, ndim=2] fingerprint = np.zeros((num_seeds, 2),
                                                                dtype=np.int64)
@@ -32,7 +38,7 @@ def minhash(char* c_str,
         for s in range(num_seeds):
             minhash[0] = INT64_MAX
             minhash[1] = INT64_MAX
-            for i in range(strlen-char_ngram+1):
+            for i in range(strlen - char_ngram + 1):
                 MurmurHash3_x64_128(c_str, char_ngram, seeds[s], hashes)
 
                 if hashes[0] < minhash[0]:

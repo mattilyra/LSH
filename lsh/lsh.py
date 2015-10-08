@@ -1,12 +1,8 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-"""
-Created on Nov 21, 2012
-
-@author: ml249
-"""
 from __future__ import division
+
+__author__ = "Matti Lyra"
 
 import re
 import logging
@@ -15,20 +11,56 @@ import zlib
 
 import numpy as np
 
-from suckerpunch.cMinhash import minhash
+from lsh.cMinhash import minhash
 
 _logger = logging.getLogger(__name__)
 
+class MinHasher(object):
+    def __init__(self, seeds, char_ngram=8, random_state=None):
+        """The MinHasher creates fingerprints from raw documents.
 
-class LSH(object):
+        The MinHasher facilitates the creation of MinHash document
+        fingerprints. It creates overlapping character ngram shingles of length
+        `char_ngram` using a sliding window over the document. To preprocessing
+        to the documents is done, they are shingled as is.
+
+        Parameters:
+        -----------
+        seeds: np.ndarray, int
+            A Numpy array of 32bit unsigned integers to use as seeds to
+            initialise hash functions, or a single integer for the number of
+            seeds to create. A minhash is computed for each hash function
+            derived from seeds.
+
+        char_ngram: int
+            The number of consecutive characters to include in a sliding window
+            when creating the document shingles.
+
+        random_state: None, int, np.random.RandomState
+            A random state to initialise the random number generator with.
+        """
+        self._ngram  = char_ngram
+        random_state = np.random.RandomState(random_state)
+        if isinstance(seeds, np.ndarray):
+            self._seeds = seeds
+        else:
+            np.random.seed(rand_seed)
+            self._seeds = np.array(random_state.randint(0, 1e6, num_seeds),
+                                   dtype=np.uint32)
+
+        def fingerprint(self, text):
+            fingerprint = minhash(text, len(text), self._seeds, self._ngram)
+            return fingerprint
+
+class Cache(object):
     """LSH provides a way of determining the local neighbourhood of a document.
 
-    Locality Sensitive Hashing relies on probabilistic guarantees of hashing
-    functions to produce hash collisions for similar content. The implementation
-    uses min hashing to produce those collisions and allows for fast
+    Locality Sensitive Hashing relies on probabilistic guarantees of a hash
+    function family to produce hash collisions for similar content. The
+    implementation uses MinHash to produce those collisions and allows for fast
     deduplication of data sets without having to do all pairs comparisons.
 
-    >>> lsh = LSH()
+    >>> lsh = Cache()
     >>> lsh.is_duplicate('This is a simple document')
     False
     >>> long_doc = 'A much longer document that contains lots of information\
@@ -43,26 +75,32 @@ class LSH(object):
     >>> long_doc = ' '.join([long_doc[0]] + long_doc[2:])
     >>> lsh.is_duplicate(long_doc)
     True"""
-    def __init__(self, num_seeds=100, bins=10, char_ngram=8, rand_seed=4905):
+    def __init__(self, num_seeds=100, num_bands=10, char_ngram=8,
+                 random_state=None):
         self._ngram = char_ngram
+
+        # each fingerprint is divided into n bins (bands) and duplicate
+        # documents are computed only for document that land in the same bucket
+        # in one of the bands
         self._bins = [defaultdict(list) for _ in range(bins)]
         self._shingles = {}
+        random_state = np.random.RandomState(random_state)
         np.random.seed(rand_seed)
-        self._seeds = np.array(np.random.randint(0, 10e4, num_seeds),
+        self._seeds = np.array(random_state.randint(0, 10e4, num_seeds),
                                dtype=np.uint32)
         self.removed_articles = 0
 
-    def _update(self, fingerprint, doc):
+    def _update(self, fingerprint, doc=None, docid=None):
         bin_size = len(fingerprint) // len(self._bins)
-        for bin, head in enumerate(range(0, len(fingerprint), bin_size)):
+        for bin_i, head in enumerate(range(0, len(fingerprint), bin_size)):
             bucket = fingerprint[head:head + bin_size]
-            self._bins[bin][bucket.sum()].append((zlib.compress(doc, 9)))
+            self._bins[bin_i][bucket.sum()].append((zlib.compress(doc, 9)))
 
     def _neighbours(self, fingerprint):
         bin_size = len(fingerprint) // len(self._bins)
-        for bin, head in enumerate(range(0, len(fingerprint), bin_size)):
+        for bin_i, head in enumerate(range(0, len(fingerprint), bin_size)):
             bucket = fingerprint[head:head + bin_size]
-            for n in self._bins[bin][bucket.sum()]:
+            for n in self._bins[bin_i][bucket.sum()]:
                 yield n
 
     def is_duplicate(self, article, min_similarity=0.65,
@@ -112,11 +150,9 @@ class LSH(object):
         return False
 
 if __name__ == '__main__':
-    lsh = LSH()
+    lsh = Cache()
     lsh.is_duplicate('A much longer document that contains lots of information. The document produces many more shingles.')
     lsh.is_duplicate('A longer document that contains lots of information. The document produces many more shingles.')
 
     import doctest
     doctest.testmod()
-
-
