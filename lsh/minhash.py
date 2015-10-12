@@ -36,6 +36,9 @@ class MinHasher(object):
         else:
             self._seeds = np.array(random_state.randint(0, 1e6, seeds),
                                    dtype=np.uint32)
+    @property
+    def seeds(self):
+        return len(self._seeds)
 
     def fingerprint(self, text):
         fingerprint = minhash(text, len(text), self._seeds, self._ngram)

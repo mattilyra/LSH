@@ -9,6 +9,8 @@ import logging
 from collections import defaultdict
 import zlib
 
+from .minhash import MinHasher
+
 _logger = logging.getLogger(__name__)
 
 
@@ -35,33 +37,49 @@ class Cache(object):
     >>> long_doc = ' '.join([long_doc[0]] + long_doc[2:])
     >>> lsh.is_duplicate(long_doc)
     True"""
-    def __init__(self, num_seeds=100, num_bands=10, char_ngram=8,
-                 random_state=None):
-        self._ngram = char_ngram
-
+    def __init__(self, bands=10, rows=None, hasher=None, compress=0):
+        if hasher is not None:
+            self.hasher = hasher
         # each fingerprint is divided into n bins (bands) and duplicate
-        # documents are computed only for document that land in the same bucket
-        # in one of the bands
-        self._bins = [defaultdict(list) for _ in range(bins)]
-        self._shingles = {}
-        random_state = np.random.RandomState(random_state)
-        np.random.seed(rand_seed)
-        self._seeds = np.array(random_state.randint(0, 10e4, num_seeds),
-                               dtype=np.uint32)
-        self.removed_articles = 0
+        # documents are computed only for documents that land in the same
+        # bucket in one of the bins
+        self.bins = [defaultdict(set) for _ in range(bands)]
+        if rows is None:
+            if hasher is None:
+                raise RuntimeError('Rows and hasher can not both be None. \
+ Either set rows explicitly or provide a hasher in which case the number rows \
+ is calculated to be such that b*r == n')
+            else:
+                self.rows = hasher.seeds // bands
+        else:
+            self.rows = rows
 
-    def _update(self, fingerprint, doc=None, docid=None):
-        bin_size = len(fingerprint) // len(self._bins)
-        for bin_i, head in enumerate(range(0, len(fingerprint), bin_size)):
-            bucket = fingerprint[head:head + bin_size]
-            self._bins[bin_i][bucket.sum()].append((zlib.compress(doc, 9)))
+        self.removed_articles = 0
+        self.compress = compress
+
+    def update(self, fingerprint, doc=None, docid=None):
+        for bin_i, head in enumerate(range(0, len(self.bins))):
+            # take r length vectors of minhashes from band i
+            head = head * self.rows
+            if head > len(fingerprint):
+                raise RuntimeError('The number of bands * rows exceeds the \
+size of the fingerprint.')
+            bucket = fingerprint[head:head + self.rows]
+            bucket_id = hash(tuple(bucket))
+            if doc is None:
+                self.bins[bin_i][bucket_id].add(docid)
+            else:
+                z_doc = zlib.compress(doc, self._compress)
+                self.bins[bin_i][bucket_id].add(z_doc)
 
     def _neighbours(self, fingerprint):
         bin_size = len(fingerprint) // len(self._bins)
         for bin_i, head in enumerate(range(0, len(fingerprint), bin_size)):
+            # take r length vectors of minhashes from band i
+            head = head * self.rows
             bucket = fingerprint[head:head + bin_size]
-            for n in self._bins[bin_i][bucket.sum()]:
-                yield n
+            bucket_id = hash(tuple(bucket))
+            yield (n in self.bins[bin_i][bucket_id])
 
     def is_duplicate(self, article, min_similarity=0.65,
                      update=True, **kwargs):
