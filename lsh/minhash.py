@@ -3,10 +3,10 @@ __author__ = "Matti Lyra"
 
 import numpy as np
 
-from .cMinhash import minhash
+from .cMinhash import minhash_32, minhash_64
 
 class MinHasher(object):
-    def __init__(self, seeds, char_ngram=8, random_state=None):
+    def __init__(self, seeds, char_ngram=8, random_state=None, hashbytes=8):
         """The MinHasher creates fingerprints from raw documents.
 
         The MinHasher facilitates the creation of MinHash document
@@ -29,8 +29,15 @@ class MinHasher(object):
         random_state: None, int, np.random.RandomState
             A random state to initialise the random number generator with.
         """
-        self._ngram  = char_ngram
+        self.ngram  = char_ngram
         random_state = np.random.RandomState(random_state)
+        if hashbytes not in set([4, 8, 16]):
+            raise ValueError('Hash has to be 4, 8 or 16 bytes.')
+
+        if hashbytes == 16:
+            raise NotImplementedError()
+
+        self.hashbytes = hashbytes
         if isinstance(seeds, np.ndarray):
             self._seeds = seeds
         else:
@@ -41,5 +48,8 @@ class MinHasher(object):
         return len(self._seeds)
 
     def fingerprint(self, text):
-        fingerprint = minhash(text, len(text), self._seeds, self._ngram)
+        if self.hashbytes == 4:
+            fingerprint = minhash_32(text, len(text), self._seeds, self.ngram)
+        elif self.hashbytes == 8:
+            fingerprint = minhash_64(text, len(text), self._seeds, self.ngram)
         return fingerprint

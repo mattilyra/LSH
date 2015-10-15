@@ -6,7 +6,7 @@ from distutils.core import setup
 from distutils.extension import Extension
 import numpy as np
 
-USE_CYTHON = True
+USE_CYTHON = False
 
 DISTNAME = 'lsh'
 DESCRIPTION = 'A library for performing shingling and LSH for python.'
@@ -16,7 +16,7 @@ MAINTAINER_EMAIL = 'm.lyra@sussex.ac.uk'
 URL = 'https://github.com/mattilyra/lsh'
 DOWNLOAD_URL = 'https://github.com/mattilyra/lsh'
 
-VERSION = '0.1.1'
+VERSION = '0.2.0'
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
 extensions = [Extension("lsh.cMinhash", ["lsh/cMinhash{}".format(ext), 'lsh/MurmurHash3.cpp'], include_dirs=[np.get_include()])]

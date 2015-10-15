@@ -1,15 +1,12 @@
-suckerpunch
+lsh
 ===========
 
-Sucker Punch is small Python library for performing near duplicate detection for text documents.
+LSH is a Python implementation of locality sensitive hashing with minhash. It is very useful for detecting
+near duplicate documents.
 
-Like a sneaky adversary duplicate documents in a corpus tend to deal an unexpected blow (sucker punch)
-to NLP pipelines. Locality sensitive hashing combined with shingling can be used to remove near
-duplicates using probabilistic comparisons between documents.
+The implementation uses the MurmurHash v3 library to create document finger prints.
 
-Sucker punch uses the MurmurHash v3 library to create the document finger prints.
-
-Cython is needed if you want regenerate the .cpp files for the hashing and shingling code. By default
+Cython is needed if you want to regenerate the .cpp files for the hashing and shingling code. By default
 the setup script uses the pregenerated .cpp sources, you can change this with the USE_CYTHON flag in
 setup.py
 
