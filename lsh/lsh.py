@@ -57,7 +57,7 @@ class Cache(object):
         self.removed_articles = 0
         self.compress = compress
 
-    def update(self, fingerprint, doc=None, docid=None):
+    def update(self, fingerprint, docid=None):
         for bin_i, head in enumerate(range(0, len(self.bins))):
             # take r length vectors of minhashes from band i
             head = head * self.rows
@@ -66,11 +66,8 @@ class Cache(object):
 size of the fingerprint.')
             bucket = fingerprint[head:head + self.rows]
             bucket_id = hash(tuple(bucket))
-            if doc is None:
-                self.bins[bin_i][bucket_id].add(docid)
-            else:
-                z_doc = zlib.compress(doc, self._compress)
-                self.bins[bin_i][bucket_id].add(z_doc)
+            entry = (fingerprint, docid)
+            self.bins[bin_i][bucket_id].add(entry)
 
     def _neighbours(self, fingerprint):
         bin_size = len(fingerprint) // len(self._bins)
