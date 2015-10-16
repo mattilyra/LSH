@@ -57,7 +57,7 @@ class Cache(object):
         self.removed_articles = 0
         self.compress = compress
 
-    def update(self, fingerprint, docid=None):
+    def update(self, fingerprint, meta=None):
         for bin_i, head in enumerate(range(0, len(self.bins))):
             # take r length vectors of minhashes from band i
             head = head * self.rows
@@ -66,7 +66,7 @@ class Cache(object):
 size of the fingerprint.')
             bucket = fingerprint[head:head + self.rows]
             bucket_id = hash(tuple(bucket))
-            entry = (fingerprint, docid)
+            entry = (fingerprint, meta)
             self.bins[bin_i][bucket_id].add(entry)
 
     def _neighbours(self, fingerprint):
