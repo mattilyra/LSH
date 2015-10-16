@@ -18,7 +18,7 @@ The MurmurHash3 library is distributed under the MIT license. More information h
 installation
 ============
 ```
-> git clone https://github.com/mattilyra/suckerpunch suckerpunch
-> cd suckerpunch
+> git clone https://github.com/mattilyra/LSH
+> cd LSH
 > python setup.py install
 ```
