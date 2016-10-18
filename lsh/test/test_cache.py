@@ -156,5 +156,10 @@ def test_invalid_settings(num_bands, default_hasher):
 def test_clear(default_cache):
     default_cache.update(mc_long_doc, 0)
     assert default_cache.is_duplicate(mc_long_doc)
+    f = default_cache.hasher.fingerprint(mc_long_doc)
+
     default_cache.clear()
+    f1 = default_cache.hasher.fingerprint(mc_long_doc)
+
     assert not default_cache.is_duplicate(mc_long_doc)
+    np.testing.assert_array_equal(f, f1)

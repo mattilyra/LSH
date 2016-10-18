@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from copy import deepcopy
+from functools import lru_cache
 
 import numpy as np
 
@@ -50,6 +51,7 @@ class MinHasher(object):
     def num_seeds(self):
         return len(self._seeds)
 
+    @lru_cache(maxsize=10000)
     def fingerprint(self, text):
         if isinstance(text, str):
             text = text.encode('utf8')

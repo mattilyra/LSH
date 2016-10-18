@@ -43,6 +43,7 @@ class Cache(object):
 
     def clear(self):
         self.bins = [defaultdict(set) for _ in range(self.num_bands)]
+        self.hasher.fingerprint.cache_clear()
 
     def to_json(self, path):
         with open(path, 'w') as outf:
