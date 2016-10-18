@@ -2,9 +2,8 @@
 import json
 from copy import deepcopy
 
-__author__ = "Matti Lyra"
-
 import numpy as np
+
 from .cMinhash import minhash_32, minhash_64
 
 
@@ -63,8 +62,8 @@ class MinHasher(object):
         return fingerprint
 
     def jaccard(self, doc1, doc2):
-        f_a = set(self.fingerprint(doc1.encode('utf8')))
-        f_b = set(self.fingerprint(doc2.encode('utf8')))
+        f_a = set(self.fingerprint(doc1))
+        f_b = set(self.fingerprint(doc2))
         return len(f_a & f_b) / len(f_a | f_b)
 
     def to_json(self, path):
