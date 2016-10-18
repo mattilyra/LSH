@@ -1,11 +1,10 @@
 #! /usr/bin/env python
 from __future__ import print_function
 
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 import numpy as np
 
-USE_CYTHON = False
+USE_CYTHON = True
 
 DISTNAME = 'lsh'
 DESCRIPTION = 'A library for performing shingling and LSH for python.'
@@ -26,6 +25,8 @@ if USE_CYTHON:
 
     extensions = cythonize(extensions)
 
+install_deps = ['numpy', 'cython>=0.24.1']
+test_deps = ['coverage>=4.0.3', 'pytest>=3.0', ]
 setup(name=DISTNAME,
       version=VERSION,
       description=DESCRIPTION,
@@ -33,4 +34,6 @@ setup(name=DISTNAME,
       author_email=MAINTAINER_EMAIL,
       url=URL,
       packages=['lsh'],
-      ext_modules=extensions)
+      ext_modules=extensions,
+      install_requires=install_deps,
+      tests_require=test_deps)
