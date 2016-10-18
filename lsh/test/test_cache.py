@@ -1,45 +1,57 @@
-import pytest
 import numpy as np
-from lsh.minhash import MinHasher
+import pytest
 
 from lsh.cache import Cache
+from lsh.minhash import MinHasher
 
 
-def test_hasher_json_serialisation(tmpdir):
+@pytest.fixture
+def default_hasher():
+    return MinHasher(seeds=100)
+
+
+@pytest.fixture
+def default_cache(default_hasher):
+    return Cache(default_hasher)
+
+
+def is_nondecreasing(L):
+    # http://stackoverflow.com/a/4983359/419338
+    return all(x <= y for x, y in zip(L, L[1:]))
+
+
+def test_hasher_json_serialisation(default_hasher, tmpdir):
     path = str(tmpdir.join("hasher.json"))
 
-    hasher = MinHasher(seeds=100)
-    hasher.to_json(path)
-    hasher2 = MinHasher.from_json_file(path)
+    default_hasher.to_json(path)
+    loaded_hasher = MinHasher.from_json_file(path)
 
     doc = 'Once upon a time in a galaxy far far away and what not'
-    np.testing.assert_array_equal(hasher.fingerprint(doc),
-                                  hasher2.fingerprint(doc))
+    np.testing.assert_array_equal(default_hasher.fingerprint(doc),
+                                  loaded_hasher.fingerprint(doc))
 
 
-def test_cache_json_serialisation(tmpdir):
+def test_cache_json_serialisation(tmpdir, default_cache):
     path = str(tmpdir.join("cache.json"))
-    hasher = MinHasher(100)
-    lsh = Cache(hasher)
 
     # easy case- the bins array is empty
-    lsh.to_json(path)
-    lsh2 = Cache.from_json(path)
+    default_cache.to_json(path)
+    loaded_cache = Cache.from_json(path)
 
     # now add some data
-    lsh.update("This is a document", 0)
-    lsh2.update("This is a document", 0)
+    default_cache.update("This is a document", 0)
+    loaded_cache.update("This is a document", 0)
 
-    lsh.to_json(path)
-    lsh2 = Cache.from_json(path)
+    default_cache.to_json(path)
+    loaded_cache = Cache.from_json(path)
 
-    lsh.update("The king of Denmark", 1)
-    lsh2.update("The king of Denmark", 1)
-    lsh.update("The queen of Zerg", 2)
-    lsh2.update("The queen of Zerg", 2)
+    default_cache.update("The king of Denmark", 1)
+    loaded_cache.update("The king of Denmark", 1)
+    default_cache.update("The queen of Zerg", 2)
+    loaded_cache.update("The queen of Zerg", 2)
 
-    lsh.to_json(path)
-    lsh2 = Cache.from_json(path)
+    default_cache.to_json(path)
+    loaded_cache = Cache.from_json(path)
 
 
 @pytest.mark.parametrize("char_ngram", [2, 3, 4, 5, 6])
@@ -89,11 +101,6 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
     assert lsh.get_all_duplicates() == {(1, 3), (1, 4), (3, 4)}
 
 
-def is_nondecreasing(L):
-    # http://stackoverflow.com/a/4983359/419338
-    return all(x <= y for x, y in zip(L, L[1:]))
-
-
 mc_long_doc = "Jang MC Min Chul is a Protoss player from South Korea, who " \
               "last played for Trig  Esports before retiring. On May 23rd, " \
               "2016, MC announced his return to pro-gaming by joining CJ " \
@@ -130,19 +137,24 @@ def test_num_bands(doc):
     assert is_nondecreasing(sums)
 
 
-def test_jaccard():
-    hasher = MinHasher(seeds=200, char_ngram=2, hashbytes=4)
-    assert hasher.jaccard("This is a doc", "This is a doc") == 1
+def test_jaccard(default_hasher):
+    assert default_hasher.jaccard("This is a doc", "This is a doc") == 1
 
-    high_j = hasher.jaccard("This is a doc", "That is a doc")
-    low_j = hasher.jaccard("This is a doc", "Cats in a tree")
-    assert 0 < low_j < high_j < 1
+    high_j = default_hasher.jaccard("This is a doc", "That is a doc")
+    low_j = default_hasher.jaccard("This is a doc", "Cats in a tree")
+    assert 0 <= low_j < high_j <= 1
 
 
 @pytest.mark.parametrize("num_bands", [3, 6, 7, 9, 71, 99, 101])
-def test_invalid_settings(num_bands):
+def test_invalid_settings(num_bands, default_hasher):
     with pytest.raises(AssertionError):
-        hasher = MinHasher(seeds=100)
-        lsh = Cache(hasher, num_bands=num_bands)
+        lsh = Cache(default_hasher, num_bands=num_bands)
         lsh.update('Hi', 1)
         lsh.get_duplicates_of('Hello')
+
+
+def test_clear(default_cache):
+    default_cache.update(mc_long_doc, 0)
+    assert default_cache.is_duplicate(mc_long_doc)
+    default_cache.clear()
+    assert not default_cache.is_duplicate(mc_long_doc)
