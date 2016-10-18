@@ -44,11 +44,12 @@ def test_cache_json_serialisation(tmpdir):
 
 @pytest.mark.parametrize("char_ngram", [2, 3, 4, 5, 6])
 @pytest.mark.parametrize("hashbytes", [4, 8])
-# trick pytest into repeat all param combinations 5 times
-@pytest.mark.parametrize("iter", range(5))
-def test_cache(char_ngram, hashbytes, iter):
-    hasher = MinHasher(seeds=200, char_ngram=char_ngram, hashbytes=hashbytes)
-    lsh = Cache(hasher, num_bands=50)
+@pytest.mark.parametrize("num_bands", [20, 40, 50])
+@pytest.mark.parametrize("seed", range(3))
+def test_cache(char_ngram, hashbytes, num_bands, seed):
+    hasher = MinHasher(seeds=200, char_ngram=char_ngram,
+                       hashbytes=hashbytes, random_state=seed)
+    lsh = Cache(hasher, num_bands=num_bands)
     # very small band width => always find duplicates
 
     short_doc = 'This is a simple document'
@@ -88,8 +89,46 @@ def test_cache(char_ngram, hashbytes, iter):
     assert lsh.get_all_duplicates() == {(1, 3), (1, 4), (3, 4)}
 
 
-# todo add 10 ever so slightly different documents to three caches
-# check that hasher with low band_width finds more matches (over 50 runs)
+def is_nondecreasing(L):
+    # http://stackoverflow.com/a/4983359/419338
+    return all(x <= y for x, y in zip(L, L[1:]))
+
+
+mc_long_doc = "Jang MC Min Chul is a Protoss player from South Korea, who " \
+              "last played for Trig  Esports before retiring. On May 23rd, " \
+              "2016, MC announced his return to pro-gaming by joining CJ " \
+              "Entus. He is currently "
+
+mc_med_doc = "Jang MC Min Chul is a Protoss player from South Korea, who " \
+             "last played for Trig Esports before retiring. He is currently "
+
+mc_short_doc = "Jang MC Min Chul is currently "
+
+
+@pytest.mark.parametrize("doc", [mc_long_doc, mc_med_doc, mc_short_doc])
+def test_num_bands(doc):
+    """
+    add near-duplicate documents to three caches with different settings
+    check that hashers with low band_width finds more matches (over 50 runs)
+    """
+    suffixes = ['teamless', 'retired', 'awesome', 'overweight']
+    duplicates = []
+    divisors_of_200 = [4, 10, 20, 25, 40, 50, 100]
+
+    for seed in range(10):
+        hasher = MinHasher(seeds=200, char_ngram=5, random_state=seed)
+        caches = [Cache(hasher, num_bands=n) for n in divisors_of_200]
+
+        for c in caches:
+            c.update(doc + suffixes[0], 0)
+
+        for s in suffixes[1:]:
+            duplicates.append([c.is_duplicate(doc + s) for c in caches])
+
+    sums = np.array(duplicates).sum(axis=0)
+    print(sums)
+    assert is_nondecreasing(sums)
+
 
 def test_jaccard():
     hasher = MinHasher(seeds=200, char_ngram=2, hashbytes=4)
