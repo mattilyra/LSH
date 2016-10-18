@@ -89,6 +89,22 @@ class Cache(object):
             bucket_id = hash(tuple(bucket))
             self.bins[bin_i][bucket_id].add(doc_id)
 
+    def filter_candidates(self, candidates, min_jaccard=0, data=dict()):
+        if min_jaccard and data:
+            logging.info('Computing Jaccard sim of %d pairs',
+                         len(candidates))
+            res = set()
+            for doc1, doc2 in candidates:
+                # todo doc1, doc2 may not be contained in data
+                jaccard = self.hasher.jaccard(data[doc1], data[doc2])
+                if jaccard > min_jaccard:
+                    res.add((doc1, doc2))
+            logging.info('Keeping %d/%d candidate duplicates',
+                         len(res), len(candidates))
+            return res
+        else:
+            return candidates
+
     def get_all_duplicates(self, min_jaccard=0, data=dict()):
         candidate_pairs = set()
         for b in self.bins:
@@ -96,28 +112,19 @@ class Cache(object):
                 if len(b[bucket_id]) > 1:
                     pairs_ = set(itertools.combinations(b[bucket_id], r=2))
                     candidate_pairs.update(pairs_)
+        return self.filter_candidates(candidate_pairs,
+                                      min_jaccard=min_jaccard,
+                                      data=data)
 
-        if min_jaccard and data:
-            logging.info('Computing Jaccard sim of %d pairs', len(candidate_pairs))
-            res = set()
-            for doc1, doc2 in candidate_pairs:
-                # todo doc1, doc2 may not be contained in data
-                jaccard = self.hasher.jaccard(data[doc1], data[doc2])
-                if jaccard > min_jaccard:
-                    res.add((doc1, doc2))
-            logging.info('Keeping %d/%d candidate duplicates',
-                         len(res), len(candidate_pairs))
-            return res
-        else:
-            return candidate_pairs
-
-    def get_duplicates_of(self, doc):
+    def get_duplicates_of(self, doc, min_jaccard=0, data=dict()):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
-        duplicates = set()
+        candidates = set()
         for bin_i, bucket in self.bins_(fingerprint):
             bucket_id = hash(tuple(bucket))
-            duplicates.update(self.bins[bin_i][bucket_id])
-        return duplicates
+            candidates.update(self.bins[bin_i][bucket_id])
+        return self.filter_candidates(candidates,
+                                      min_jaccard=min_jaccard,
+                                      data=data)
 
     def is_duplicate(self, doc, doc_id=None):
         if doc_id is not None and doc_id in self.seen_ids:

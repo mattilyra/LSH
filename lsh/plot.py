@@ -19,7 +19,7 @@ if __name__ == '__main__':  # pragma: no cover
         data = dict()
         out_prefix = os.path.splitext(os.path.basename(fname))[0]
         hasher = MinHasher(seeds=100, char_ngram=5, random_state=42)
-        lsh = Cache(hasher=hasher, num_bands=5)
+        lsh = Cache(hasher=hasher, num_bands=10)
 
         logging.info('Updating cache')
         with open(fname) as fh:
@@ -32,7 +32,7 @@ if __name__ == '__main__':  # pragma: no cover
 
         graph = nx.Graph()
         logging.info('Getting duplicates')
-        graph.add_edges_from(lsh.get_all_duplicates(min_jaccard=0.5,
+        graph.add_edges_from(lsh.get_all_duplicates(min_jaccard=0.9,
                                                     data=data))
 
         with open('%s-components.txt' % out_prefix, 'w') as outf:
