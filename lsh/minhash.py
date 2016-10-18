@@ -64,8 +64,14 @@ class MinHasher(object):
         return fingerprint
 
     def jaccard(self, doc1, doc2):
-        f_a = set(self.fingerprint(doc1))
-        f_b = set(self.fingerprint(doc2))
+        if isinstance(doc1, str):
+            f_a = set(self.fingerprint(doc1))
+        else:
+            f_a = doc1 # assume it's z fingerprint
+        if isinstance(doc1, str):
+            f_b = set(self.fingerprint(doc2))
+        else:
+            f_b = doc2
         return len(f_a & f_b) / len(f_a | f_b)
 
     def to_json(self, path):

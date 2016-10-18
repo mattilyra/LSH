@@ -28,12 +28,11 @@ if __name__ == '__main__':  # pragma: no cover
                 content = title + ' ' + content
                 data[i] = content
                 lsh.update(content, i)
-        logging.info('Updated cache with %d docs', len(lsh.seen_ids))
+        logging.info('Updated cache with %d docs', len(lsh.fingerprints))
 
         graph = nx.Graph()
         logging.info('Getting duplicates')
-        graph.add_edges_from(lsh.get_all_duplicates(min_jaccard=0.9,
-                                                    data=data))
+        graph.add_edges_from(lsh.get_all_duplicates(min_jaccard=0.9))
 
         with open('%s-components.txt' % out_prefix, 'w') as outf:
             for subgraph in nx.connected_component_subgraphs(graph):

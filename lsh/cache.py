@@ -36,7 +36,7 @@ class Cache(object):
         self.band_width = hasher.num_seeds // num_bands
         self.num_bands = num_bands
 
-        self.seen_ids = set()
+        self.fingerprints = dict()
 
     def bins_(self, fingerprint):
         yield from enumerate(np.array_split(fingerprint, self.num_bands))
@@ -62,16 +62,32 @@ class Cache(object):
             b1.update({k: set(v) for k, v in bin.items()})
             bins.append(b1)
         cache.bins = bins
+
+        key_typecast = {
+            'int': int,
+            'str': str,
+            '': lambda x: x
+        }
+        func = key_typecast[data.pop('id_key_type', '')]
+        cache.fingerprints = {func(k[0]): np.array(v)
+                              for k, v in data['fingerprints'].items()}
         return cache
 
     def jsonable(self):
         d = deepcopy(self.__dict__)
         d['hasher'] = d['hasher'].jsonable()
-        d['seen_ids'] = list(d['seen_ids'])
+        d['fingerprints'] = {k: v.tolist()
+                             for k, v in d['fingerprints'].items()}
+        if d['fingerprints']:
+            sample_id = list(d['fingerprints'].keys())[0]
+            if isinstance(sample_id, str):
+                d['id_key_type'] = 'str'
+            if isinstance(sample_id, int):
+                d['id_key_type'] = 'int'
         bins = []
-        for bin in self.bins:
-            # bin is a defaultdict(int->set[int])
-            b1 = {k: list(v) for k, v in bin.items()}
+        for b in self.bins:
+            # b is a defaultdict(int->set[int])
+            b1 = {k: list(v) for k, v in b.items()}
             bins.append(b1)
         d['bins'] = bins
         return d
@@ -79,55 +95,64 @@ class Cache(object):
     def update(self, doc, doc_id):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
 
-        if doc_id is not None and doc_id in self.seen_ids:
+        if doc_id is not None and doc_id in self.fingerprints:
             # todo is this a problem? should we refuse to add it?
             logging.warning('Duplicate id %d', doc_id)
-        self.seen_ids.add(doc_id)
+        self.fingerprints[doc_id] = fingerprint
 
         for bin_i, bucket in self.bins_(fingerprint):
-            # todo? use murmur hash here? faster?
+            # todo faster hash here? or no hash at all?
             bucket_id = hash(tuple(bucket))
             self.bins[bin_i][bucket_id].add(doc_id)
 
-    def filter_candidates(self, candidates, min_jaccard=0, data=dict()):
-        if min_jaccard and data:
-            logging.info('Computing Jaccard sim of %d pairs',
-                         len(candidates))
-            res = set()
-            for doc1, doc2 in candidates:
-                # todo doc1, doc2 may not be contained in data
-                jaccard = self.hasher.jaccard(data[doc1], data[doc2])
-                if jaccard > min_jaccard:
-                    res.add((doc1, doc2))
-            logging.info('Keeping %d/%d candidate duplicates',
-                         len(res), len(candidates))
-            return res
-        else:
-            return candidates
+    def filter_candidates(self, candidate_id_pairs, min_jaccard):
+        logging.info('Computing Jaccard sim of %d pairs',
+                     len(candidate_id_pairs))
+        res = set()
+        for id1, id2 in candidate_id_pairs:
+            # todo id1, id2 may not be contained in data
+            jaccard = self.hasher.jaccard(self.fingerprints[id1],
+                                          self.fingerprints[id2])
+            if jaccard > min_jaccard:
+                res.add((id1, id2))
+        logging.info('Keeping %d/%d candidate duplicate pairs',
+                     len(res), len(candidate_id_pairs))
+        return res
 
-    def get_all_duplicates(self, min_jaccard=0, data=dict()):
+    def get_all_duplicates(self, min_jaccard=None):
         candidate_pairs = set()
         for b in self.bins:
             for bucket_id in b:
                 if len(b[bucket_id]) > 1:
                     pairs_ = set(itertools.combinations(b[bucket_id], r=2))
                     candidate_pairs.update(pairs_)
-        return self.filter_candidates(candidate_pairs,
-                                      min_jaccard=min_jaccard,
-                                      data=data)
+        if min_jaccard is None:
+            return candidate_pairs
 
-    def get_duplicates_of(self, doc, min_jaccard=0, data=dict()):
-        fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
+        return self.filter_candidates(candidate_pairs, min_jaccard)
+
+    def get_duplicates_of(self, doc=None, doc_id=None, min_jaccard=None):
+        if doc_id is not None and doc_id in self.fingerprints:
+            fingerprint = self.fingerprints[doc_id]
+        elif doc is not None:
+            fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
+        else:
+            raise ValueError('Must provide a document or a know document id')
+
         candidates = set()
         for bin_i, bucket in self.bins_(fingerprint):
             bucket_id = hash(tuple(bucket))
             candidates.update(self.bins[bin_i][bucket_id])
-        return self.filter_candidates(candidates,
-                                      min_jaccard=min_jaccard,
-                                      data=data)
+
+        if min_jaccard is None:
+            return candidates
+        else:
+            return {x for x in candidates
+                    if self.hasher.jaccard(fingerprint,
+                                           self.fingerprints[x]) > min_jaccard}
 
     def is_duplicate(self, doc, doc_id=None):
-        if doc_id is not None and doc_id in self.seen_ids:
+        if doc_id is not None and doc_id in self.fingerprints:
             return False
 
         return len(self.get_duplicates_of(doc) - {doc_id}) > 0

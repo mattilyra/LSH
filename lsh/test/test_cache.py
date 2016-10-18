@@ -39,8 +39,13 @@ def test_cache_json_serialisation(tmpdir, default_cache):
     loaded_cache = Cache.from_json(path)
 
     # now add some data
-    default_cache.update("This is a document", 0)
-    loaded_cache.update("This is a document", 0)
+    doc = "This is a document"
+    default_cache.update(doc, 0)
+    loaded_cache.update(doc, 0)
+    assert (default_cache.get_duplicates_of(doc) ==
+            loaded_cache.get_duplicates_of(doc))
+    assert (default_cache.get_duplicates_of(doc_id=0) ==
+            loaded_cache.get_duplicates_of(doc_id=0))
 
     default_cache.to_json(path)
     loaded_cache = Cache.from_json(path)
@@ -52,6 +57,17 @@ def test_cache_json_serialisation(tmpdir, default_cache):
 
     default_cache.to_json(path)
     loaded_cache = Cache.from_json(path)
+
+    assert (default_cache.get_duplicates_of(doc) ==
+            loaded_cache.get_duplicates_of(doc))
+    assert (default_cache.get_duplicates_of(doc_id=0) ==
+            loaded_cache.get_duplicates_of(doc_id=0))
+
+    assert (default_cache.get_duplicates_of(doc) ==
+            loaded_cache.get_duplicates_of(doc))
+    for id in [0, 1, 2]:
+        assert (default_cache.get_duplicates_of(doc_id=id) ==
+                loaded_cache.get_duplicates_of(doc_id=id))
 
 
 @pytest.mark.parametrize("char_ngram", [2, 3, 4, 5, 6])
@@ -137,6 +153,30 @@ def test_num_bands(doc):
     assert is_nondecreasing(sums)
 
 
+def test_filtering_by_jaccard(default_cache):
+    data = {0: mc_long_doc, 1: mc_med_doc,
+            2: mc_med_doc, 3: mc_short_doc}
+
+    for id, doc in data.items():
+        default_cache.update(doc, id)
+
+    for mj in np.arange(0.1, 0.91, step=0.1):
+        dupes = default_cache.get_all_duplicates(min_jaccard=mj)
+        assert dupes == {(1, 2)}
+
+    dupes = default_cache.get_duplicates_of(doc=mc_med_doc,
+                                            min_jaccard=0.9)
+    assert dupes == {1, 2}
+
+    dupes = default_cache.get_duplicates_of(doc_id=1,
+                                            min_jaccard=0.9)
+    assert dupes == {1, 2}
+
+    dupes = default_cache.get_duplicates_of('Nothing to see',
+                                            min_jaccard=0.1)
+    assert dupes == set()
+
+
 def test_jaccard(default_hasher):
     assert default_hasher.jaccard("This is a doc", "This is a doc") == 1
 
@@ -146,11 +186,15 @@ def test_jaccard(default_hasher):
 
 
 @pytest.mark.parametrize("num_bands", [3, 6, 7, 9, 71, 99, 101])
-def test_invalid_settings(num_bands, default_hasher):
+def test_invalid_settings(num_bands, default_hasher, default_cache):
     with pytest.raises(AssertionError):
         lsh = Cache(default_hasher, num_bands=num_bands)
         lsh.update('Hi', 1)
         lsh.get_duplicates_of('Hello')
+
+    default_cache.update('Hi', 0)
+    with pytest.raises(ValueError):
+        default_cache.get_duplicates_of(doc_id=123)
 
 
 def test_clear(default_cache):
