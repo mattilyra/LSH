@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import json
+from copy import deepcopy
+
 __author__ = "Matti Lyra"
 
 import numpy as np
-
 from .cMinhash import minhash_32, minhash_64
 
 
@@ -30,7 +32,7 @@ class MinHasher(object):
         random_state: None, int, np.random.RandomState
             A random state to initialise the random number generator with.
         """
-        self.ngram = char_ngram
+        self.char_ngram = char_ngram
         random_state = np.random.RandomState(random_state)
         if hashbytes not in set([4, 8, 16]):
             raise ValueError('Hash has to be 4, 8 or 16 bytes.')
@@ -40,23 +42,46 @@ class MinHasher(object):
 
         self.hashbytes = hashbytes
         if isinstance(seeds, np.ndarray):
-            self._seeds = seeds
+            self._seeds = seeds.astype(np.uint32)
         else:
             self._seeds = np.array(random_state.randint(0, 1e6, seeds),
                                    dtype=np.uint32)
 
     @property
-    def seeds(self):
+    def num_seeds(self):
         return len(self._seeds)
 
     def fingerprint(self, text):
+        if isinstance(text, str):
+            text = text.encode('utf8')
         if self.hashbytes == 4:
-            fingerprint = minhash_32(text, len(text), self._seeds, self.ngram)
+            fingerprint = minhash_32(text, len(text),
+                                     self._seeds, self.char_ngram)
         elif self.hashbytes == 8:
-            fingerprint = minhash_64(text, len(text), self._seeds, self.ngram)
+            fingerprint = minhash_64(text, len(text),
+                                     self._seeds, self.char_ngram)
         return fingerprint
 
     def jaccard(self, doc1, doc2):
         f_a = set(self.fingerprint(doc1.encode('utf8')))
         f_b = set(self.fingerprint(doc2.encode('utf8')))
         return len(f_a & f_b) / len(f_a | f_b)
+
+    def to_json(self, path):
+        with open(path, 'w') as outf:
+            json.dump(self.jsonable(), outf)
+
+    @staticmethod
+    def from_json_file(path):
+        with open(path) as inf:
+            return MinHasher.from_json_str(json.load(inf))
+
+    @staticmethod
+    def from_json_str(js):
+        seeds = np.array(js.pop('_seeds'))
+        return MinHasher(seeds, **js)
+
+    def jsonable(self):
+        d = deepcopy(self.__dict__)
+        d['_seeds'] = d['_seeds'].tolist()
+        return d
