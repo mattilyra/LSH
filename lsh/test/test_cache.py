@@ -153,6 +153,17 @@ def test_num_bands(doc):
     assert is_nondecreasing(sums)
 
 
+@pytest.mark.parametrize("doc", [mc_long_doc, mc_med_doc, mc_short_doc])
+def test_real_world_usage(default_cache, doc):
+    default_cache.update(doc, 0)
+    default_cache.update(doc, 1)
+
+    assert default_cache.is_duplicate(doc)
+    assert default_cache.is_duplicate(doc, 0)
+    assert default_cache.is_duplicate(doc, 1)
+    assert default_cache.is_duplicate(doc, 2)
+
+
 def test_filtering_by_jaccard(default_cache):
     data = {0: mc_long_doc, 1: mc_med_doc,
             2: mc_med_doc, 3: mc_short_doc}
