@@ -94,10 +94,6 @@ class Cache(object):
 
     def update(self, doc, doc_id):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
-
-        if doc_id is not None and doc_id in self.fingerprints:
-            # todo is this a problem? should we refuse to add it?
-            logging.warning('Duplicate id %d', doc_id)
         self.fingerprints[doc_id] = fingerprint
 
         for bin_i, bucket in self.bins_(fingerprint):
@@ -152,7 +148,7 @@ class Cache(object):
         elif doc is not None:
             fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
         else:
-            raise ValueError('Must provide a document or a know document id')
+            raise ValueError('Must provide a document or a known document id')
 
         candidates = set()
         for bin_i, bucket in self.bins_(fingerprint):
