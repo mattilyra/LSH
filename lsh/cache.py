@@ -119,6 +119,21 @@ class Cache(object):
                      len(res), len(candidate_id_pairs))
         return res
 
+    def remove_id(self, doc_id):
+        fingerprint = self.fingerprints[doc_id]
+        for bin_i, bucket in self.bins_(fingerprint):
+            bucket_id = hash(tuple(bucket))
+            self.bins[bin_i][bucket_id].remove(doc_id)
+
+        del self.fingerprints[doc_id]
+
+    def remove_doc(self, doc):
+        fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
+        doc_ids = {id for id, finger in self.fingerprints.items()
+                  if all(a == b for a, b in zip(finger, fingerprint))}
+        for i in doc_ids:
+            self.remove_id(i)
+
     def get_all_duplicates(self, min_jaccard=None):
         candidate_pairs = set()
         for b in self.bins:

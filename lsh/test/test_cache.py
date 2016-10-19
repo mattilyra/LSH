@@ -218,3 +218,52 @@ def test_clear(default_cache):
 
     assert not default_cache.is_duplicate(mc_long_doc)
     np.testing.assert_array_equal(f, f1)
+
+
+def test_remove_by_id(default_cache):
+    default_cache.update(mc_long_doc, 0)
+    default_cache.update(mc_med_doc, 1)
+    default_cache.update(mc_short_doc, 2)
+    default_cache.update(mc_short_doc, 3)
+
+    # initially everything is a duplicate
+    assert default_cache.is_duplicate(mc_long_doc)
+    assert default_cache.is_duplicate(mc_med_doc)
+    assert default_cache.is_duplicate(mc_short_doc)
+
+    # doc removed, it must no longer be a dupe, but all others still are
+    default_cache.remove_id(0)
+    assert not default_cache.is_duplicate(mc_long_doc)
+    assert default_cache.is_duplicate(mc_med_doc)
+    assert default_cache.is_duplicate(mc_short_doc)
+
+    # another doc removed. non-removed docs are still duplicates
+    default_cache.remove_id(1)
+    assert not default_cache.is_duplicate(mc_long_doc)
+    assert not default_cache.is_duplicate(mc_med_doc)
+    assert default_cache.is_duplicate(mc_short_doc)
+
+    default_cache.remove_id(2)
+    assert not default_cache.is_duplicate(mc_long_doc)
+    assert not default_cache.is_duplicate(mc_med_doc)
+    assert default_cache.is_duplicate(mc_short_doc)
+
+    default_cache.remove_id(3)
+    assert not default_cache.is_duplicate(mc_short_doc)
+
+    with pytest.raises(KeyError):
+        default_cache.remove_id(123)  # unknown id
+
+
+def test_remove_by_text(default_cache):
+    default_cache.update(mc_long_doc, 0)
+    default_cache.update(mc_short_doc, 1)
+    default_cache.update(mc_short_doc, 2)
+
+    assert default_cache.is_duplicate(mc_long_doc)
+    assert default_cache.is_duplicate(mc_short_doc)
+
+    # both occurences of the removed doc should go away
+    default_cache.remove_doc(mc_short_doc)
+    assert default_cache.is_duplicate(mc_long_doc)
+    assert not default_cache.is_duplicate(mc_short_doc)
