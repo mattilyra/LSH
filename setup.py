@@ -14,7 +14,7 @@ MAINTAINER_EMAIL = 'm.lyra@sussex.ac.uk'
 URL = 'https://github.com/mattilyra/lsh'
 DOWNLOAD_URL = 'https://github.com/mattilyra/lsh'
 
-VERSION = '0.2.0'
+VERSION = '0.3.0'
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
 extensions = [Extension("lsh.cMinhash",
