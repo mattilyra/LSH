@@ -59,7 +59,7 @@ class Cache(object):
         bins = []
         for bin in data['bins']:
             b1 = defaultdict(set)
-            b1.update({k: set(v) for k, v in bin.items()})
+            b1.update({int(k): set(v) for k, v in bin.items()})
             bins.append(b1)
         cache.bins = bins
 
