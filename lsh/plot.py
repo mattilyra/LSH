@@ -27,7 +27,7 @@ if __name__ == '__main__':  # pragma: no cover
                 i, title, content = line.split('\t')
                 content = title + ' ' + content
                 data[i] = content
-                lsh.update(content, i)
+                lsh.add_doc(content, i)
         logging.info('Updated cache with %d docs', len(lsh.fingerprints))
 
         graph = nx.Graph()

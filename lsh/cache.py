@@ -92,10 +92,12 @@ class Cache(object):
         d['bins'] = bins
         return d
 
-    def update(self, doc, doc_id):
+    def add_doc(self, doc, doc_id):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
-        self.fingerprints[doc_id] = fingerprint
+        self.add_fingerprint(fingerprint, doc_id)
 
+    def add_fingerprint(self, fingerprint, doc_id):
+        self.fingerprints[doc_id] = fingerprint
         for bin_i, bucket in self.bins_(fingerprint):
             # todo faster hash here? or no hash at all?
             bucket_id = hash(tuple(bucket))
@@ -163,4 +165,4 @@ class Cache(object):
                                            self.fingerprints[x]) > min_jaccard}
 
     def is_duplicate(self, doc, doc_id=None):
-        return len(self.get_duplicates_of(doc) - {doc_id}) > 0
+        return len(self.get_duplicates_of(doc, doc_id=doc_id) - {doc_id}) > 0

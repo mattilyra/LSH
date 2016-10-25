@@ -40,8 +40,8 @@ def test_cache_json_serialisation(tmpdir, default_cache):
 
     # now add some data
     doc = "This is a document"
-    default_cache.update(doc, 0)
-    loaded_cache.update(doc, 0)
+    default_cache.add_doc(doc, 0)
+    loaded_cache.add_doc(doc, 0)
     assert (default_cache.get_duplicates_of(doc) ==
             loaded_cache.get_duplicates_of(doc))
     assert (default_cache.get_duplicates_of(doc_id=0) ==
@@ -50,10 +50,10 @@ def test_cache_json_serialisation(tmpdir, default_cache):
     default_cache.to_json(path)
     loaded_cache = Cache.from_json(path)
 
-    default_cache.update("The king of Denmark", 1)
-    loaded_cache.update("The king of Denmark", 1)
-    default_cache.update("The queen of Zerg", 2)
-    loaded_cache.update("The queen of Zerg", 2)
+    default_cache.add_doc("The king of Denmark", 1)
+    loaded_cache.add_doc("The king of Denmark", 1)
+    default_cache.add_doc("The queen of Zerg", 2)
+    loaded_cache.add_doc("The queen of Zerg", 2)
 
     default_cache.to_json(path)
     loaded_cache = Cache.from_json(path)
@@ -86,14 +86,14 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
        different words. The document produces many more shingles.'
 
     assert not lsh.is_duplicate(short_doc)
-    lsh.update(short_doc, 0)
+    lsh.add_doc(short_doc, 0)
     assert lsh.get_duplicates_of(short_doc) == {0}
     assert not lsh.is_duplicate(short_doc, doc_id=0)
     assert lsh.is_duplicate(short_doc)  # no id provided, compare by
 
     assert not lsh.is_duplicate(long_doc)
-    lsh.update(long_doc, 1)
-    lsh.update(another_doc, 2)
+    lsh.add_doc(long_doc, 1)
+    lsh.add_doc(another_doc, 2)
 
     # id is provided, so ignoree matches to self. the doc is therefore unique
     assert not lsh.is_duplicate(another_doc, doc_id=2)
@@ -110,10 +110,10 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
     assert lsh.is_duplicate(long_doc + ' Word.')
 
     assert lsh.get_all_duplicates() == set()
-    lsh.update(long_doc_missing_word, 3)
+    lsh.add_doc(long_doc_missing_word, 3)
     assert lsh.get_all_duplicates() == {(1, 3)}
 
-    lsh.update(long_doc_missing_word, 4)
+    lsh.add_doc(long_doc_missing_word, 4)
     assert lsh.get_all_duplicates() == {(1, 3), (1, 4), (3, 4)}
 
 
@@ -143,7 +143,7 @@ def test_num_bands(doc):
         caches = [Cache(hasher, num_bands=n) for n in divisors_of_200]
 
         for c in caches:
-            c.update(doc + suffixes[0], 0)
+            c.add_doc(doc + suffixes[0], 0)
 
         for s in suffixes[1:]:
             duplicates.append([c.is_duplicate(doc + s) for c in caches])
@@ -155,8 +155,8 @@ def test_num_bands(doc):
 
 @pytest.mark.parametrize("doc", [mc_long_doc, mc_med_doc, mc_short_doc])
 def test_real_world_usage(default_cache, doc):
-    default_cache.update(doc, 0)
-    default_cache.update(doc, 1)
+    default_cache.add_doc(doc, 0)
+    default_cache.add_doc(doc, 1)
 
     assert default_cache.is_duplicate(doc)
     assert default_cache.is_duplicate(doc, 0)
@@ -169,7 +169,7 @@ def test_filtering_by_jaccard(default_cache):
             2: mc_med_doc, 3: mc_short_doc}
 
     for id, doc in data.items():
-        default_cache.update(doc, id)
+        default_cache.add_doc(doc, id)
 
     for mj in np.arange(0.1, 0.91, step=0.1):
         dupes = default_cache.get_all_duplicates(min_jaccard=mj)
@@ -200,16 +200,16 @@ def test_jaccard(default_hasher):
 def test_invalid_settings(num_bands, default_hasher, default_cache):
     with pytest.raises(AssertionError):
         lsh = Cache(default_hasher, num_bands=num_bands)
-        lsh.update('Hi', 1)
+        lsh.add_doc('Hi', 1)
         lsh.get_duplicates_of('Hello')
 
-    default_cache.update('Hi', 0)
+    default_cache.add_doc('Hi', 0)
     with pytest.raises(ValueError):
         default_cache.get_duplicates_of(doc_id=123)
 
 
 def test_clear(default_cache):
-    default_cache.update(mc_long_doc, 0)
+    default_cache.add_doc(mc_long_doc, 0)
     assert default_cache.is_duplicate(mc_long_doc)
     f = default_cache.hasher.fingerprint(mc_long_doc)
 
@@ -221,10 +221,10 @@ def test_clear(default_cache):
 
 
 def test_remove_by_id(default_cache):
-    default_cache.update(mc_long_doc, 0)
-    default_cache.update(mc_med_doc, 1)
-    default_cache.update(mc_short_doc, 2)
-    default_cache.update(mc_short_doc, 3)
+    default_cache.add_doc(mc_long_doc, 0)
+    default_cache.add_doc(mc_med_doc, 1)
+    default_cache.add_doc(mc_short_doc, 2)
+    default_cache.add_doc(mc_short_doc, 3)
 
     # initially everything is a duplicate
     assert default_cache.is_duplicate(mc_long_doc)
@@ -256,9 +256,9 @@ def test_remove_by_id(default_cache):
 
 
 def test_remove_by_text(default_cache):
-    default_cache.update(mc_long_doc, 0)
-    default_cache.update(mc_short_doc, 1)
-    default_cache.update(mc_short_doc, 2)
+    default_cache.add_doc(mc_long_doc, 0)
+    default_cache.add_doc(mc_short_doc, 1)
+    default_cache.add_doc(mc_short_doc, 2)
 
     assert default_cache.is_duplicate(mc_long_doc)
     assert default_cache.is_duplicate(mc_short_doc)
