@@ -165,4 +165,4 @@ class Cache(object):
                                            self.fingerprints[x]) > min_jaccard}
 
     def is_duplicate(self, doc, doc_id=None):
-        return len(self.get_duplicates_of(doc, doc_id=doc_id) - {doc_id}) > 0
+        return len(self.get_duplicates_of(doc, doc_id=doc_id)) > 0

@@ -88,19 +88,16 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
     assert not lsh.is_duplicate(short_doc)
     lsh.add_doc(short_doc, 0)
     assert lsh.get_duplicates_of(short_doc) == {0}
-    assert not lsh.is_duplicate(short_doc, doc_id=0)
-    assert lsh.is_duplicate(short_doc)  # no id provided, compare by
+    assert lsh.is_duplicate(short_doc, doc_id=0)
+    assert lsh.is_duplicate(short_doc)
 
     assert not lsh.is_duplicate(long_doc)
     lsh.add_doc(long_doc, 1)
     lsh.add_doc(another_doc, 2)
-
-    # id is provided, so ignoree matches to self. the doc is therefore unique
-    assert not lsh.is_duplicate(another_doc, doc_id=2)
-    # w/o an id, the doc will match itself
     assert lsh.is_duplicate(another_doc)
 
-    assert not lsh.is_duplicate(long_doc, doc_id=1)
+    assert lsh.is_duplicate(long_doc, doc_id=1)
+    assert lsh.is_duplicate(long_doc)
 
     words = long_doc.split()
     long_doc_missing_word = ' '.join([words[0]] + words[2:])
