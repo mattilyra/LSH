@@ -4,13 +4,13 @@ from __future__ import print_function
 from setuptools import setup, Extension
 import numpy as np
 
-USE_CYTHON = True
+USE_CYTHON = False
 
 DISTNAME = 'lsh'
 DESCRIPTION = 'A library for performing shingling and LSH for python.'
 
 MAINTAINER = 'Matti Lyra'
-MAINTAINER_EMAIL = 'm.lyra@sussex.ac.uk'
+MAINTAINER_EMAIL = 'matti.lyra@gmail.com'
 URL = 'https://github.com/mattilyra/lsh'
 DOWNLOAD_URL = 'https://github.com/mattilyra/lsh'
 
