@@ -45,53 +45,6 @@ class Cache(object):
         self.bins = [defaultdict(set) for _ in range(self.num_bands)]
         self.hasher.fingerprint.cache_clear()
 
-    def to_json(self, path):
-        with open(path, 'w') as outf:
-            json.dump(self.jsonable(), outf)
-
-    @staticmethod
-    def from_json(path):
-        with open(path) as inf:
-            data = json.load(inf)
-
-        cache = Cache(MinHasher.from_json_str(data.pop('hasher')),
-                      **data)
-        bins = []
-        for bin in data['bins']:
-            b1 = defaultdict(set)
-            b1.update({int(k): set(v) for k, v in bin.items()})
-            bins.append(b1)
-        cache.bins = bins
-
-        key_typecast = {
-            'int': int,
-            'str': str,
-            '': lambda x: x
-        }
-        func = key_typecast[data.pop('id_key_type', '')]
-        cache.fingerprints = {func(k[0]): np.array(v)
-                              for k, v in data['fingerprints'].items()}
-        return cache
-
-    def jsonable(self):
-        d = deepcopy(self.__dict__)
-        d['hasher'] = d['hasher'].jsonable()
-        d['fingerprints'] = {k: v.tolist()
-                             for k, v in d['fingerprints'].items()}
-        if d['fingerprints']:
-            sample_id = list(d['fingerprints'].keys())[0]
-            if isinstance(sample_id, str):
-                d['id_key_type'] = 'str'
-            if isinstance(sample_id, int):
-                d['id_key_type'] = 'int'
-        bins = []
-        for b in self.bins:
-            # b is a defaultdict(int->set[int])
-            b1 = {k: list(v) for k, v in b.items()}
-            bins.append(b1)
-        d['bins'] = bins
-        return d
-
     def add_doc(self, doc, doc_id):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
         self.add_fingerprint(fingerprint, doc_id)

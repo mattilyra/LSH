@@ -20,56 +20,6 @@ def is_nondecreasing(L):
     return all(x <= y for x, y in zip(L, L[1:]))
 
 
-def test_hasher_json_serialisation(default_hasher, tmpdir):
-    path = str(tmpdir.join("hasher.json"))
-
-    default_hasher.to_json(path)
-    loaded_hasher = MinHasher.from_json_file(path)
-
-    doc = 'Once upon a time in a galaxy far far away and what not'
-    np.testing.assert_array_equal(default_hasher.fingerprint(doc),
-                                  loaded_hasher.fingerprint(doc))
-
-
-def test_cache_json_serialisation(tmpdir, default_cache):
-    path = str(tmpdir.join("cache.json"))
-
-    # easy case- the bins array is empty
-    default_cache.to_json(path)
-    loaded_cache = Cache.from_json(path)
-
-    # now add some data
-    doc = "This is a document"
-    default_cache.add_doc(doc, 0)
-    loaded_cache.add_doc(doc, 0)
-    assert (default_cache.get_duplicates_of(doc) ==
-            loaded_cache.get_duplicates_of(doc))
-    assert (default_cache.get_duplicates_of(doc_id=0) ==
-            loaded_cache.get_duplicates_of(doc_id=0))
-
-    default_cache.to_json(path)
-    loaded_cache = Cache.from_json(path)
-
-    default_cache.add_doc("The king of Denmark", 1)
-    loaded_cache.add_doc("The king of Denmark", 1)
-    default_cache.add_doc("The queen of Zerg", 2)
-    loaded_cache.add_doc("The queen of Zerg", 2)
-
-    default_cache.to_json(path)
-    loaded_cache = Cache.from_json(path)
-
-    assert (default_cache.get_duplicates_of(doc) ==
-            loaded_cache.get_duplicates_of(doc))
-    assert (default_cache.get_duplicates_of(doc_id=0) ==
-            loaded_cache.get_duplicates_of(doc_id=0))
-
-    assert (default_cache.get_duplicates_of(doc) ==
-            loaded_cache.get_duplicates_of(doc))
-    for id in [0, 1, 2]:
-        assert (default_cache.get_duplicates_of(doc_id=id) ==
-                loaded_cache.get_duplicates_of(doc_id=id))
-
-
 @pytest.mark.parametrize("char_ngram", [2, 3, 4, 5, 6])
 @pytest.mark.parametrize("hashbytes", [4, 8])
 @pytest.mark.parametrize("num_bands", [20, 40, 50])

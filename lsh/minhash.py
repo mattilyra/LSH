@@ -74,21 +74,3 @@ class MinHasher(object):
             f_b = doc2
         return len(f_a & f_b) / len(f_a | f_b)
 
-    def to_json(self, path):
-        with open(path, 'w') as outf:
-            json.dump(self.jsonable(), outf)
-
-    @staticmethod
-    def from_json_file(path):
-        with open(path) as inf:
-            return MinHasher.from_json_str(json.load(inf))
-
-    @staticmethod
-    def from_json_str(js):
-        seeds = np.array(js.pop('_seeds'))
-        return MinHasher(seeds, **js)
-
-    def jsonable(self):
-        d = deepcopy(self.__dict__)
-        d['_seeds'] = d['_seeds'].tolist()
-        return d
