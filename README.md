@@ -12,7 +12,7 @@ setup.py
 
 NumPy is needed to run the code.
 
-The MurmurHash3 library is distributed under the MIT license. More information https://code.google.com/smhasher
+The MurmurHash3 library is distributed under the MIT license. More information https://github.com/aappleby/smhasher
 
 
 installation

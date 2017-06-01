@@ -2,7 +2,6 @@
 from __future__ import print_function
 
 from setuptools import setup, Extension
-import numpy as np
 
 USE_CYTHON = False
 
@@ -17,9 +16,15 @@ DOWNLOAD_URL = 'https://github.com/mattilyra/lsh'
 VERSION = '0.3.0'
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
+try:
+    import numpy as np
+    includes = [np.get_include()]
+except ImportError:
+    includes = []
+
 extensions = [Extension("lsh.cMinhash",
                         ["lsh/cMinhash{}".format(ext), 'lsh/MurmurHash3.cpp'],
-                        include_dirs=[np.get_include()])]
+                        include_dirs=includes)]
 if USE_CYTHON:
     from Cython.Build import cythonize
 
