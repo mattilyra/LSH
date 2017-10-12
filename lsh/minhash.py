@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import json
-from copy import deepcopy
-from functools import lru_cache
+try:
+    from functools import lru_cache
+except ImportError:
+    from functools32 import lru_cache
 
 import numpy as np
 
@@ -67,10 +68,9 @@ class MinHasher(object):
         if isinstance(doc1, str):
             f_a = set(self.fingerprint(doc1))
         else:
-            f_a = doc1 # assume it's z fingerprint
+            f_a = doc1  # assume it's z fingerprint
         if isinstance(doc1, str):
             f_b = set(self.fingerprint(doc2))
         else:
             f_b = doc2
         return len(f_a & f_b) / len(f_a | f_b)
-
