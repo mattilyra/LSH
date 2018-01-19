@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 
-import json
-from collections import defaultdict
 import itertools
 import logging
-from copy import deepcopy
+from warnings import warn
 
 import numpy as np
-from lsh.minhash import MinHasher
+
+from .backends import DictBackend
 
 __author__ = "Matti Lyra"
 
@@ -22,39 +21,60 @@ class Cache(object):
     deduplication of data sets without having to do all pairs comparisons.
     """
 
-    def __init__(self, hasher, num_bands=10, **kwargs):
+    def __init__(self, hasher, num_bands=10, backend=DictBackend, **kwargs):
+        """
+
+        :param hasher: Hash function to use, default minhash
+        :param num_bands: Number of bands to chop each fingerprint into
+        :param backend: Backend for storing seen fingerprints
+        :param kwargs: passed to the backend constructor
+        """
         # each fingerprint is divided into n bins (bands) and duplicate
         # documents are computed only for documents that land in the same
         # bucket in one of the bins
         # bins[idx of band where docs may overlap][hash of fingerprint] ->
         # list of doc ids that have that fingerprint segment at that position
-        self.bins = [defaultdict(set) for _ in range(num_bands)]
+        self.backend = backend(num_bands, **kwargs)
         self.hasher = hasher
         msg = 'The number of seeds in the fingerprint must ' \
               'be divisible by the number of bands'
         assert hasher.num_seeds % num_bands == 0, msg
         self.band_width = hasher.num_seeds // num_bands
         self.num_bands = num_bands
+        self.backend = backend
 
-        self.fingerprints = dict()
+        try:
+            b = self.backend()
+            b['test'] = 0
+            _ = b['test']
+        except KeyError as err:
+            warn("It seems the backend you provided is not adding elements to it.")
+            raise
+        except Exception:
+            pass
+
+        self.fingerprints = self.backend()
 
     def bins_(self, fingerprint):
         yield from enumerate(np.array_split(fingerprint, self.num_bands))
 
     def clear(self):
-        self.bins = [defaultdict(set) for _ in range(self.num_bands)]
+        self.bins = None
         self.hasher.fingerprint.cache_clear()
 
-    def add_doc(self, doc, doc_id):
+    def add_doc(self, doc, doc_id=None):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
         self.add_fingerprint(fingerprint, doc_id)
 
-    def add_fingerprint(self, fingerprint, doc_id):
-        self.fingerprints[doc_id] = fingerprint
+    def add_fingerprint(self, fingerprint, doc_id=None):
+        if doc_id is not None:
+            # cache the fingerprint
+            self.fingerprints[doc_id] = fingerprint
+
         for bin_i, bucket in self.bins_(fingerprint):
             # todo faster hash here? or no hash at all?
             bucket_id = hash(tuple(bucket))
-            self.bins[bin_i][bucket_id].add(doc_id)
+            self.backend.add(bin_i, bucket_id, fingerprint, doc_id)
 
     def filter_candidates(self, candidate_id_pairs, min_jaccard):
         logging.info('Computing Jaccard sim of %d pairs',
@@ -81,7 +101,7 @@ class Cache(object):
     def remove_doc(self, doc):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
         doc_ids = {id for id, finger in self.fingerprints.items()
-                  if all(a == b for a, b in zip(finger, fingerprint))}
+                   if all(a == b for a, b in zip(finger, fingerprint))}
         for i in doc_ids:
             self.remove_id(i)
 
