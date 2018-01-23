@@ -37,7 +37,7 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
 
     assert not lsh.is_duplicate(short_doc)
     lsh.add_doc(short_doc, 0)
-    assert lsh.get_duplicates_of(short_doc) == {0}
+    assert set(lsh.get_duplicates_of(short_doc)) == {0}
     assert lsh.is_duplicate(short_doc, doc_id=0)
     assert lsh.is_duplicate(short_doc)
 
@@ -52,7 +52,7 @@ def test_cache(char_ngram, hashbytes, num_bands, seed):
     words = long_doc.split()
     long_doc_missing_word = ' '.join([words[0]] + words[2:])
 
-    assert lsh.get_duplicates_of(long_doc_missing_word) == {1}
+    assert set(lsh.get_duplicates_of(long_doc_missing_word)) == {1}
     assert lsh.is_duplicate(long_doc_missing_word)
     assert lsh.is_duplicate(long_doc + ' Word.')
 
@@ -119,19 +119,19 @@ def test_filtering_by_jaccard(default_cache):
         default_cache.add_doc(doc, id)
 
     for mj in np.arange(0.1, 0.91, step=0.1):
-        dupes = default_cache.get_all_duplicates(min_jaccard=mj)
+        dupes = set(default_cache.get_all_duplicates(min_jaccard=mj))
         assert dupes == {(1, 2)}
 
-    dupes = default_cache.get_duplicates_of(doc=mc_med_doc,
-                                            min_jaccard=0.9)
+    dupes = set(default_cache.get_duplicates_of(doc=mc_med_doc,
+                                                min_jaccard=0.9))
     assert dupes == {1, 2}
 
-    dupes = default_cache.get_duplicates_of(doc_id=1,
-                                            min_jaccard=0.9)
+    dupes = set(default_cache.get_duplicates_of(doc_id=1,
+                                                min_jaccard=0.9))
     assert dupes == {1, 2}
 
-    dupes = default_cache.get_duplicates_of('Nothing to see',
-                                            min_jaccard=0.1)
+    dupes = set(default_cache.get_duplicates_of('Nothing to see',
+                                                min_jaccard=0.1))
     assert dupes == set()
 
 
@@ -152,7 +152,7 @@ def test_invalid_settings(num_bands, default_hasher, default_cache):
 
     default_cache.add_doc('Hi', 0)
     with pytest.raises(ValueError):
-        default_cache.get_duplicates_of(doc_id=123)
+        list(default_cache.get_duplicates_of(doc_id=123))
 
 
 def test_clear(default_cache):

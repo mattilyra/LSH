@@ -67,16 +67,16 @@ class MinHasher(object):
         elif self.hashbytes == 8:
             fingerprint = minhash_64(text, len(text),
                                      self._seeds, self.char_ngram)
-        return fingerprint
+        return tuple(fingerprint)
 
     def jaccard(self, doc1, doc2):
         if isinstance(doc1, str):
             f_a = set(self.fingerprint(doc1))
         else:
-            f_a = doc1  # this is either a fingerprint or a set of shingles
+            f_a = set(doc1)  # this is either a fingerprint or a set of shingles
 
         if isinstance(doc1, str):
             f_b = set(self.fingerprint(doc2))
         else:
-            f_b = doc2
+            f_b = set(doc2)
         return len(f_a & f_b) / len(f_a | f_b)
