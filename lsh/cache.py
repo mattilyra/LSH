@@ -21,7 +21,7 @@ class Cache(object):
     deduplication of data sets without having to do all pairs comparisons.
     """
 
-    def __init__(self, hasher, num_bands=10, backend=DictBackend, **kwargs):
+    def __init__(self, hasher, num_bands=10, backend=DictBackend, cache_documents=False, **kwargs):
         """
 
         :param hasher: Hash function to use, default minhash
@@ -34,7 +34,7 @@ class Cache(object):
         # bucket in one of the bins
         # bins[idx of band where docs may overlap][hash of fingerprint] ->
         # list of doc ids that have that fingerprint segment at that position
-        self.backend = backend(num_bands, **kwargs)
+        self.backend = backend(num_bands, cache_documents, **kwargs)
         self.hasher = hasher
         msg = 'The number of seeds in the fingerprint must ' \
               'be divisible by the number of bands'
@@ -53,8 +53,6 @@ class Cache(object):
         except Exception:
             pass
 
-        self.fingerprints = self.backend()
-
     def bins_(self, fingerprint):
         yield from enumerate(np.array_split(fingerprint, self.num_bands))
 
@@ -64,26 +62,33 @@ class Cache(object):
 
     def add_doc(self, doc, doc_id=None):
         fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
+        self.backend.add_document(doc, doc_id)
         self.add_fingerprint(fingerprint, doc_id)
 
     def add_fingerprint(self, fingerprint, doc_id=None):
-        if doc_id is not None:
-            # cache the fingerprint
-            self.fingerprints[doc_id] = fingerprint
-
         for bin_i, bucket in self.bins_(fingerprint):
-            # todo faster hash here? or no hash at all?
             bucket_id = hash(tuple(bucket))
-            self.backend.add(bin_i, bucket_id, fingerprint, doc_id)
+            self.backend.add_fingerprint(bin_i, bucket_id, fingerprint, doc_id)
 
     def filter_candidates(self, candidate_id_pairs, min_jaccard):
+        """Check a list of candidate ID pairs for approximate duplicates.
+
+        This method only compares the fingerprints of the documents, not the exact shingle sets. While this is faster
+        it is also less accurate.
+
+        :param candidate_id_pairs:
+        :param min_jaccard:
+        :return:
+        """
         logging.info('Computing Jaccard sim of %d pairs',
                      len(candidate_id_pairs))
         res = set()
         for id1, id2 in candidate_id_pairs:
             # todo id1, id2 may not be contained in data
-            jaccard = self.hasher.jaccard(self.fingerprints[id1],
-                                          self.fingerprints[id2])
+            # todo fetch the fingerprints for id1 and id2 from the DB
+            f1 = self.backend.get_fingerprint(id1)
+            f2 = self.backend.get_fingerprint(id2)
+            jaccard = self.hasher.jaccard(f1, f2)
             if jaccard > min_jaccard:
                 res.add((id1, id2))
         logging.info('Keeping %d/%d candidate duplicate pairs',
@@ -118,17 +123,18 @@ class Cache(object):
         return self.filter_candidates(candidate_pairs, min_jaccard)
 
     def get_duplicates_of(self, doc=None, doc_id=None, min_jaccard=None):
-        if doc_id is not None and doc_id in self.fingerprints:
-            fingerprint = self.fingerprints[doc_id]
-        elif doc is not None:
-            fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
-        else:
-            raise ValueError('Must provide a document or a known document id')
+        if doc_id is not None:
+            try:
+                fingerprint = self.backend.get_fingerprint(doc_id)
+            except KeyError:
+                if doc is None:
+                    raise ValueError('Must provide a document or a known document id')
+                fingerprint = self.hasher.fingerprint(doc.encode('utf8'))
 
         candidates = set()
         for bin_i, bucket in self.bins_(fingerprint):
             bucket_id = hash(tuple(bucket))
-            candidates.update(self.bins[bin_i][bucket_id])
+            candidates.update(self.backend.get_bucket(bin_i, bucket_id))
 
         if min_jaccard is None:
             return candidates
@@ -137,5 +143,7 @@ class Cache(object):
                     if self.hasher.jaccard(fingerprint,
                                            self.fingerprints[x]) > min_jaccard}
 
-    def is_duplicate(self, doc, doc_id=None):
+    def is_duplicate(self, doc, doc_id=None, min_similarity=0.9):
+        if self.backend.is_empty():
+            return False
         return len(self.get_duplicates_of(doc, doc_id=doc_id)) > 0

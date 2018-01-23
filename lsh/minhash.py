@@ -48,6 +48,11 @@ class MinHasher(object):
             self._seeds = np.array(random_state.randint(0, 1e6, seeds),
                                    dtype=np.uint32)
 
+    def shingle_document(self, document):
+        # TODO: should be done in Cython
+        return set([document[start:stop] for start, stop in
+                    zip(range(0, len(document) - self.char_ngram), range(self.char_ngram, len(document)))])
+
     @property
     def num_seeds(self):
         return len(self._seeds)
@@ -68,7 +73,8 @@ class MinHasher(object):
         if isinstance(doc1, str):
             f_a = set(self.fingerprint(doc1))
         else:
-            f_a = doc1  # assume it's z fingerprint
+            f_a = doc1  # this is either a fingerprint or a set of shingles
+
         if isinstance(doc1, str):
             f_b = set(self.fingerprint(doc2))
         else:
