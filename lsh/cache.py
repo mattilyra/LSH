@@ -8,7 +8,7 @@ from warnings import warn
 
 import numpy as np
 
-from .backends import DictBackend
+from .backends import DictBackend, SqliteBackend
 
 __author__ = "Matti Lyra"
 
@@ -75,9 +75,13 @@ class Cache(object):
         self.add_fingerprint(fingerprint, doc_id)
 
     def add_fingerprint(self, fingerprint, doc_id):
-        for bin_i, bucket in self.bins_(fingerprint):
-            bucket_id = hash(tuple(bucket))
-            self.backend.add_fingerprint(bin_i, bucket_id, fingerprint, doc_id)
+        if isinstance(self.backend, SqliteBackend):
+            bins_buckets = [(bin_i, hash(tuple(bucket))) for bin_i, bucket in self.bins_(fingerprint)]
+            self.backend.add_fingerprint(bins_buckets, fingerprint, doc_id)
+        else:
+            for bin_i, bucket in self.bins_(fingerprint):
+                bucket_id = hash(tuple(bucket))
+                self.backend.add_fingerprint(bin_i, bucket_id, fingerprint, doc_id)
 
     def filter_candidates(self, candidate_id_pairs, min_jaccard):
         """Check a list of candidate ID pairs for approximate duplicates.
@@ -98,7 +102,6 @@ class Cache(object):
 
         for id1, id2 in candidate_id_pairs:
             # todo id1, id2 may not be contained in data
-            # todo fetch the fingerprints for id1 and id2 from the DB
             f1 = self.backend.get_fingerprint(id1)
             f2 = self.backend.get_fingerprint(id2)
             jaccard = self.hasher.jaccard(f1, f2)
