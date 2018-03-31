@@ -144,9 +144,10 @@ def test_jaccard(default_hasher):
 
 
 @pytest.mark.parametrize("num_bands", [3, 6, 7, 9, 71, 99, 101])
-def test_invalid_settings(num_bands, default_hasher, default_cache):
+@pytest.mark.parametrize("backend", ['dict'])
+def test_invalid_settings(num_bands, default_hasher, default_cache, backend):
     with pytest.raises(AssertionError):
-        lsh = Cache(default_hasher, num_bands=num_bands)
+        lsh = Cache(default_hasher, num_bands=num_bands, backend=backend)
         lsh.add_doc('Hi', 1)
         lsh.get_duplicates_of('Hello')
 
