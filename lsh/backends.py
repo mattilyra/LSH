@@ -10,6 +10,17 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 
+def validate_docid(doc_id):
+    if doc_id is None:
+        raise ValueError('Document ID (doc_id) can not be None.')
+
+    try:
+        hash(doc_id)
+    except TypeError:
+        raise ValueError(f'Document ID must be a hashable type not {type(doc_id)}.')
+
+    return doc_id
+
 class NotCachedException(Exception):
     pass
 
@@ -37,13 +48,7 @@ class DictBackend():
         doc_id: object, an optional document ID to store with the fingerprint
         """
 
-        if doc_id is None:
-            raise ValueError('Document ID (doc_id) can not be None.')
-
-        try:
-            hash(doc_id)
-        except TypeError:
-            raise ValueError(f'Document ID must be a hashable type not {type(doc_id)}.')
+        doc_id = validate_docid(doc_id)
 
         if bucket_id not in self._doc_ids[bin_i]:
             self._doc_ids[bin_i][bucket_id] = set()
@@ -102,6 +107,7 @@ class SqliteBackend():
     def __init__(self, num_bands, filename='lsh.sqlite'):
         self.filename = Path(filename).expanduser()
         self.num_bands = num_bands
+        self.empty = True
 
         if not self.filename.parent.exists():
             self.filename.parent.mkdir()
@@ -109,13 +115,21 @@ class SqliteBackend():
         if self.filename.exists():
             if self.num_bands != num_bands and num_bands > 0:
                 raise RuntimeError(f'SqliteDB {filename} exists and contains {_num_bands_} bands, {num_bands} were requested. Please use -1 for existing files or delete the file.')
+            else:
+                with sqlite_cursor(self.filename) as c:
+                    count = c.execute('SELECT COUNT(DISTINCT doc_id) from data').fetchone()
+                    self.empty = count == 0
         else:
             with sqlite_cursor(self.filename) as c:
                 _ = c.execute(f'CREATE TABLE "data" (band_id, bucket_id, doc_id, fingerprint, f_ord);')
                 _ = c.execute(f'CREATE INDEX bands on "data" (band_id, bucket_id);')
                 _ = c.execute(f'CREATE INDEX docs on "data" (doc_id);')
 
+    def is_empty(self):
+        return self.empty
+
     def add_fingerprint(self, bins_buckets: List[Tuple[int, int]], fingerprint: Tuple[int], doc_id: int):
+        doc_id = validate_docid(doc_id)
         if self.doc_exists(doc_id):
             log.info(f'Document {doc_id} exists.')
             return False
@@ -128,15 +142,23 @@ class SqliteBackend():
             log.debug(f'{query}')
             _ = c.executemany(query, values)
             rows = c.rowcount
+            if self.empty and rows > 0:
+                self.emtpy = False
         return rows > 0
 
     def doc_exists(self, doc_id):
+        if self.emtpy:
+            return False
+
         with sqlite_cursor(self.filename) as c:
             c = c.execute(f'SELECT COUNT(doc_id) from data where doc_id={doc_id};')
             count = c.fetchone()[0]
         return count > 0
 
     def get_fingerprint(self, doc_id:int) -> Tuple[int, ...]:
+        if self.empty:
+            raise RuntimeError('Tried to retrieve fingerprint from an empty DB.')
+
         if doc_id is None or not self.doc_exists():
             raise KeyError(f'Tried to retrieve fingerprint for non existent document id: {doc_id}.')
 
@@ -146,7 +168,7 @@ class SqliteBackend():
             band, bucket = c.fetchone()
             c = c.execute(f'SELECT fingerprint from data WHERE band_id={band} AND bucket_id={bucket} ORDER BY f_ord;')
             fingerprint = c.fetchall()
-            fingerprint = tuple(e[0] for e in fingerprint)
+            fingerprint = tuple(e['fingerprint'] for e in fingerprint)
         return fingerprint
 
     def get_bucket(self, bin_i:int, bucket_id:int) -> List[Tuple[int, ...]]:
