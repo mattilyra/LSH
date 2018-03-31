@@ -116,7 +116,6 @@ class Cache(object):
         for bin_i, bucket in self.bins_(fingerprint):
             bucket_id = hash(tuple(bucket))
             self.backend.remove_docid(bin_i, bucket_id, doc_id)
-            # self.bins[bin_i][bucket_id].remove(doc_id)
 
         self.backend.remove_fingerprint(doc_id)
 
