@@ -1,8 +1,10 @@
+import os
 import sqlite3
 import logging
+import contextlib
 
 from warnings import warn
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Set
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -20,6 +22,7 @@ def validate_docid(doc_id):
         raise ValueError(f'Document ID must be a hashable type not {type(doc_id)}.')
 
     return doc_id
+
 
 class NotCachedException(Exception):
     pass
@@ -61,7 +64,8 @@ class DictBackend():
     def get_all_buckets(self):
         yield from (bucket for bin_i in range(len(self._doc_ids)) for bucket in self._doc_ids[bin_i].values())
 
-    def get_bucket(self, bin_i, bucket_id):
+    def get_bucket(self, bin_i:int, bucket_id:int) -> Set[int]:
+        """Returns the document IDs contained in a specific bucket."""
         if bucket_id not in self._doc_ids[bin_i]:
             return {}
 
@@ -120,10 +124,13 @@ class SqliteBackend():
                     count = c.execute('SELECT COUNT(DISTINCT doc_id) from data').fetchone()
                     self.empty = count == 0
         else:
-            with sqlite_cursor(self.filename) as c:
-                _ = c.execute(f'CREATE TABLE "data" (band_id, bucket_id, doc_id, fingerprint, f_ord);')
-                _ = c.execute(f'CREATE INDEX bands on "data" (band_id, bucket_id);')
-                _ = c.execute(f'CREATE INDEX docs on "data" (doc_id);')
+            self.initdb()
+
+    def initdb(self):
+        with sqlite_cursor(self.filename) as c:
+            _ = c.execute(f'CREATE TABLE "data" (band_id, bucket_id, doc_id, fingerprint, f_ord);')
+            _ = c.execute(f'CREATE INDEX bands on "data" (band_id, bucket_id);')
+            _ = c.execute(f'CREATE INDEX docs on "data" (doc_id);')
 
     def is_empty(self):
         return self.empty
@@ -147,7 +154,7 @@ class SqliteBackend():
         return rows > 0
 
     def doc_exists(self, doc_id):
-        if self.emtpy:
+        if self.empty:
             return False
 
         with sqlite_cursor(self.filename) as c:
@@ -171,8 +178,29 @@ class SqliteBackend():
             fingerprint = tuple(e['fingerprint'] for e in fingerprint)
         return fingerprint
 
-    def get_bucket(self, bin_i:int, bucket_id:int) -> List[Tuple[int, ...]]:
-        raise NotImplementedError()
+    def get_bucket(self, bin_i:int, bucket_id:int) -> Set[int]:
+        with sqlite_cursor(self.filename) as c:
+            c = c.execute(f'SELECT DISTINCT doc_id FROM data where band_id={bin_i} and bucket_id={bucket_id}')
+            if c.rowcount == 0:
+                return {}
 
-    def get_all_buckets(self):
-        raise NotImplementedError()
+            doc_ids = set([r[0] for r in c.fetchall()])
+        return doc_ids
+
+    def get_all_buckets(self) -> List[Tuple[int, ...]]:
+        with sqlite_cursor(self.filename) as c:
+            c.execute('SELECT doc_id from data GROUP BY band_id, bucket_id')
+            return c.fetchall()
+
+    def remove_docid(self, bin_i, bucket_id, doc_id):
+        with sqlite_cursor(self.filename) as c:
+            c.execute(f'DELETE * FROM data WHERE doc_id={doc_id}')
+            return c.rowcount > 0
+
+    def remove_fingerprint(self, doc_id):
+        return self.remove_docid(None, None, doc_id)
+
+    def clear(self):
+        self.empty = True
+        with sqlite_cursor(self.filename) as c:
+            c.execute('DELETE * from data;')
