@@ -1,20 +1,15 @@
-lsh
+pylsh
 ===========
 
-LSH is a Python implementation of locality sensitive hashing with minhash. It
-is very useful for detecting near duplicate documents.
+`pylsh` is a Python implementation of locality sensitive hashing with minhash. It is very useful for detecting near duplicate documents.
 
-The implementation uses the MurmurHash v3 library to create document finger
-prints.
+The implementation uses the MurmurHash v3 library to create document finger prints.
 
-Cython is needed if you want to regenerate the `.cpp` files for the hashing and
-shingling code. By default the setup script uses the pregenerated `.cpp`
-sources, you can change this with the USE_CYTHON flag in setup.py
+Cython is needed if you want to regenerate the `.cpp` files for the hashing and shingling code. By default the setup script uses the pregenerated `.cpp` sources, you can change this with the USE_CYTHON flag in setup.py
 
 NumPy is needed to run the code.
 
-The MurmurHash3 library is distributed under the MIT license. More information
-https://github.com/aappleby/smhasher
+The MurmurHash3 library is distributed under the MIT license. More information https://github.com/aappleby/smhasher
 
 
 examples
