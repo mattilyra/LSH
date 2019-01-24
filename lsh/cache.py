@@ -42,7 +42,6 @@ class Cache(object):
             self.backend = DictBackend(num_bands, cache_documents, **kwargs)
         else:
             raise ValueError(f"Unkown backend 'backend'.")
-        print(self.backend.is_empty())
         self.hasher = hasher
         msg = 'The number of seeds in the fingerprint must ' \
               'be divisible by the number of bands'
@@ -165,7 +164,7 @@ class Cache(object):
         try:
             for bin_i, bucket in self.bins_(fingerprint):
                 bucket_id = hash(tuple(bucket))
-                bucket_ = self.backend.get_bucket(bin_i, bucket_id) - set([-1])
+                bucket_ = self.backend.get_bucket(bin_i, bucket_id) - j[-1])
                 for doc_id2 in bucket_:
                     yield from _filter(self.filter_candidates([(doc_id, doc_id2)], min_jaccard=min_jaccard), dedup)
         finally:
@@ -187,7 +186,7 @@ class Cache(object):
         try:
             # if there is at least one duplicate, then the document is a duplicate
             # not need to check any further
-            itr = self.get_duplicates_of(doc, doc_id=doc_id)
+            itr = self.get_duplicates_of(doc, doc_id=doc_id, min_jaccard=min_similarity)
             _ = next(itr)
         except StopIteration:
             return False
