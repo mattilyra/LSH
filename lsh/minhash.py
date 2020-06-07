@@ -2,6 +2,7 @@
 import json
 from copy import deepcopy
 from functools import lru_cache
+import warnings
 
 import numpy as np
 
@@ -64,6 +65,12 @@ class MinHasher(object):
         return fingerprint
 
     def jaccard(self, doc1, doc2):
+        """Compute the approximate jaccard similarity of two documents."""
+        
+        if self.num_seeds < 100:
+            warnings.warn("The number of hash functions is less than 100,"
+                          " the similarity is unlikely to be reliable.")
+
         if isinstance(doc1, str):
             f_a = set(self.fingerprint(doc1))
         else:
@@ -71,6 +78,6 @@ class MinHasher(object):
         if isinstance(doc1, str):
             f_b = set(self.fingerprint(doc2))
         else:
-            f_b = doc2
+            f_b = set(doc2)
         return len(f_a & f_b) / len(f_a | f_b)
 

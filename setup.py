@@ -4,7 +4,7 @@ from __future__ import print_function
 from setuptools import setup, Extension
 import numpy as np
 
-USE_CYTHON = False
+USE_CYTHON = True
 
 DISTNAME = 'lsh'
 DESCRIPTION = 'A library for performing shingling and LSH for python.'

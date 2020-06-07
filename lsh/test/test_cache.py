@@ -96,7 +96,6 @@ def test_num_bands(doc):
             duplicates.append([c.is_duplicate(doc + s) for c in caches])
 
     sums = np.array(duplicates).sum(axis=0)
-    print(sums)
     assert is_nondecreasing(sums)
 
 
@@ -123,6 +122,10 @@ def test_filtering_by_jaccard(default_cache):
         assert dupes == {(1, 2)}
 
     dupes = default_cache.get_duplicates_of(doc=mc_med_doc,
+                                            min_jaccard=0.9)
+    assert dupes == {1, 2}
+
+    dupes = default_cache.get_duplicates_of(doc=mc_med_doc + " bla",
                                             min_jaccard=0.9)
     assert dupes == {1, 2}
 
