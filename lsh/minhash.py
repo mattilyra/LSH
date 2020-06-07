@@ -67,7 +67,7 @@ class MinHasher(object):
         if isinstance(doc1, str):
             f_a = set(self.fingerprint(doc1))
         else:
-            f_a = doc1 # assume it's z fingerprint
+            f_a = set(doc1)  # assume it's z fingerprint
         if isinstance(doc1, str):
             f_b = set(self.fingerprint(doc2))
         else:
